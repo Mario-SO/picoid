@@ -26,6 +26,13 @@ pub fn main() !void {
 }
 ```
 
+Sample output (values will differ each run):
+
+```text
+ZqRTEjLqW4X09G6uj-jhb
+iNWX-4Fwnx3nDaBeawuQ1rXQd2n_CdtB
+```
+
 ### Custom Alphabet
 
 ```zig
@@ -39,6 +46,12 @@ pub fn main() !void {
     defer allocator.free(id);
     std.debug.print("{s}\n", .{id});
 }
+```
+
+Sample output (value will differ each run):
+
+```text
+21a15d29d2
 ```
 
 ### Custom Random Source
@@ -61,6 +74,12 @@ pub fn main() !void {
 
     std.debug.print("{s}\n", .{id});
 }
+```
+
+Sample output (deterministic for seed `42`):
+
+```text
+tCQ2dbQefRJl
 ```
 
 ## API
