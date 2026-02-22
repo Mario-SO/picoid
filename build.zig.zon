@@ -1,0 +1,13 @@
+.{
+    .name = .picoid,
+    .version = "0.0.0",
+    .fingerprint = 0xba3a18019a1eb31a, // Changing this has security and trust implications.
+    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
