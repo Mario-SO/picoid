@@ -73,8 +73,6 @@ pub fn main() !void {
 - `picoid.formatInto(random, symbols, out) !void`
 - `picoid.format(allocator, random, symbols, size) ![]u8`
 
-Compatibility aliases are also exported: `nanoid`, `nanoidInto`, `nanoidAlloc`.
-
 Random source helpers are available in `picoid.rngs`:
 
 - `picoid.rngs.default`

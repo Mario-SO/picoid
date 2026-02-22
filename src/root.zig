@@ -72,25 +72,7 @@ pub fn picoidAlloc(
     return format(allocator, rngs.default, alphabet.SAFE[0..], size);
 }
 
-/// Backward-compatible alias.
-pub fn nanoid() [default_size]u8 {
-    return picoid();
-}
-
-/// Backward-compatible alias.
-pub fn nanoidInto(out: []u8) void {
-    picoidInto(out);
-}
-
-/// Backward-compatible alias.
-pub fn nanoidAlloc(
-    allocator: std.mem.Allocator,
-    size: usize,
-) (std.mem.Allocator.Error || Error)![]u8 {
-    return picoidAlloc(allocator, size);
-}
-
-/// Allocate and return a Nano ID with a custom alphabet.
+/// Allocate and return a picoid with a custom alphabet.
 pub fn customAlphabetAlloc(
     allocator: std.mem.Allocator,
     size: usize,
@@ -99,7 +81,7 @@ pub fn customAlphabetAlloc(
     return format(allocator, rngs.default, symbols, size);
 }
 
-/// Allocate and return a Nano ID with custom alphabet and custom random source.
+/// Allocate and return a picoid with custom alphabet and custom random source.
 pub fn customRandomAlloc(
     allocator: std.mem.Allocator,
     size: usize,
@@ -184,20 +166,4 @@ test "customRandomAlloc works with deterministic random source" {
     defer std.testing.allocator.free(id);
 
     try std.testing.expectEqualStrings("ZZZZZZZZZZ", id);
-}
-
-test "nanoid aliases preserve behavior" {
-    const id = nanoid();
-    try std.testing.expectEqual(default_size, id.len);
-    try expectAllInAlphabet(id[0..], alphabet.SAFE[0..]);
-
-    var out: [12]u8 = undefined;
-    nanoidInto(out[0..]);
-    try expectAllInAlphabet(out[0..], alphabet.SAFE[0..]);
-
-    const allocated = try nanoidAlloc(std.testing.allocator, 12);
-    defer std.testing.allocator.free(allocated);
-
-    try std.testing.expectEqual(@as(usize, 12), allocated.len);
-    try expectAllInAlphabet(allocated, alphabet.SAFE[0..]);
 }
