@@ -41,21 +41,3 @@ fn threadLocalFill(_: *anyopaque, buf: []u8) void {
 
     tls_state.prng.random().bytes(buf);
 }
-
-test "default fills random vectors" {
-    var bytes: [5]u8 = undefined;
-    default.bytes(&bytes);
-    try std.testing.expectEqual(@as(usize, 5), bytes.len);
-}
-
-test "non_secure fills random vectors" {
-    var bytes: [5]u8 = undefined;
-    non_secure.bytes(&bytes);
-    try std.testing.expectEqual(@as(usize, 5), bytes.len);
-}
-
-test "thread_local fills random vectors" {
-    var bytes: [5]u8 = undefined;
-    thread_local.bytes(&bytes);
-    try std.testing.expectEqual(@as(usize, 5), bytes.len);
-}

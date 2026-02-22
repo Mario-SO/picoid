@@ -1,6 +1,6 @@
 # picoid
 
-A tiny, secure, URL-friendly unique ID generator for Zig `0.15.2`, translated from the Rust `nanoid` API.
+A tiny, secure, URL-friendly unique ID generator for Zig `0.15.2`. 
 
 ## Features
 

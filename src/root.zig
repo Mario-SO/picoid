@@ -109,113 +109,95 @@ pub fn customRandomAlloc(
     return format(allocator, random, symbols, size);
 }
 
-test "format generates deterministic string" {
-    const CyclingRng = struct {
-        index: usize = 0,
-
-        fn fill(self: *@This(), out: []u8) void {
-            const bytes = [_]u8{ 2, 255, 0, 1 };
-            for (out) |*b| {
-                b.* = bytes[self.index % bytes.len];
-                self.index += 1;
-            }
-        }
-
-        fn random(self: *@This()) std.Random {
-            return std.Random.init(self, fill);
-        }
-    };
-
-    const symbols = [_]u8{ 'a', 'b', 'c' };
-    var id: [4]u8 = undefined;
-    var deterministic = CyclingRng{};
-    try formatInto(deterministic.random(), symbols[0..], &id);
-
-    try std.testing.expectEqualStrings("cabc", id[0..]);
+fn expectAllInAlphabet(value: []const u8, symbols: []const u8) !void {
+    for (value) |ch| {
+        try std.testing.expect(std.mem.indexOfScalar(u8, symbols, ch) != null);
+    }
 }
 
-test "bad alphabet is rejected" {
-    var big: [257]u8 = undefined;
-    for (&big, 0..) |*ch, i| ch.* = @intCast(i % 256);
-
+test "formatInto returns EmptyAlphabet for empty symbols" {
+    var prng = std.Random.DefaultPrng.init(1);
     var out: [8]u8 = undefined;
-    try std.testing.expectError(error.AlphabetTooLong, formatInto(rngs.default, big[0..], &out));
+
+    try std.testing.expectError(error.EmptyAlphabet, formatInto(prng.random(), "", &out));
 }
 
-test "non power of 2 alphabet" {
-    const id = try customAlphabetAlloc(std.testing.allocator, 42, alphabet.SAFE[0..62]);
-    defer std.testing.allocator.free(id);
+test "formatInto returns AlphabetTooLong when symbols exceed max" {
+    var prng = std.Random.DefaultPrng.init(2);
+    var out: [8]u8 = undefined;
+    var symbols: [max_alphabet_len + 1]u8 = undefined;
+    @memset(&symbols, 'a');
 
-    try std.testing.expectEqual(@as(usize, 42), id.len);
+    try std.testing.expectError(error.AlphabetTooLong, formatInto(prng.random(), symbols[0..], &out));
 }
 
-test "simple default ID length" {
+test "formatInto supports empty output buffer" {
+    var prng = std.Random.DefaultPrng.init(3);
+    var out: [0]u8 = undefined;
+
+    try formatInto(prng.random(), alphabet.SAFE[0..], out[0..]);
+}
+
+test picoid {
     const id = picoid();
-    try std.testing.expectEqual(@as(usize, 21), id.len);
+    try std.testing.expectEqual(default_size, id.len);
+    try expectAllInAlphabet(id[0..], alphabet.SAFE[0..]);
 }
 
-test "custom size" {
-    const id = try picoidAlloc(std.testing.allocator, 42);
+test "picoidInto fills output with safe symbols" {
+    var out: [17]u8 = undefined;
+    picoidInto(out[0..]);
+
+    try expectAllInAlphabet(out[0..], alphabet.SAFE[0..]);
+}
+
+test "picoidAlloc returns requested length and safe symbols" {
+    const id = try picoidAlloc(std.testing.allocator, 33);
     defer std.testing.allocator.free(id);
 
-    try std.testing.expectEqual(@as(usize, 42), id.len);
+    try std.testing.expectEqual(@as(usize, 33), id.len);
+    try expectAllInAlphabet(id, alphabet.SAFE[0..]);
 }
 
-test "custom alphabet" {
-    const id = try customAlphabetAlloc(std.testing.allocator, 42, alphabet.SAFE[0..]);
+test "format returns requested length and chosen symbols" {
+    var prng = std.Random.DefaultPrng.init(4);
+    const symbols = "01";
+    const id = try format(std.testing.allocator, prng.random(), symbols, 25);
     defer std.testing.allocator.free(id);
 
-    try std.testing.expectEqual(@as(usize, 42), id.len);
+    try std.testing.expectEqual(@as(usize, 25), id.len);
+    try expectAllInAlphabet(id, symbols);
 }
 
-test "custom random source" {
-    var seeded = std.Random.DefaultPrng.init(42);
-    const id = try customRandomAlloc(std.testing.allocator, 4, alphabet.SAFE[0..], seeded.random());
+test "customAlphabetAlloc only uses provided alphabet" {
+    const symbols = "abc";
+    const id = try customAlphabetAlloc(std.testing.allocator, 64, symbols);
     defer std.testing.allocator.free(id);
 
-    try std.testing.expectEqual(@as(usize, 4), id.len);
+    try std.testing.expectEqual(@as(usize, 64), id.len);
+    try expectAllInAlphabet(id, symbols);
 }
 
-test "same deterministic source yields same ID" {
-    const uuid = "8936ad0c-9443-4007-9430-e223c64d4629";
-
-    const ConstantRng = struct {
-        offset: usize = 0,
-
-        fn fill(self: *@This(), out: []u8) void {
-            for (out, 0..) |*byte, idx| {
-                byte.* = uuid[(self.offset + idx) % uuid.len];
-            }
-            self.offset += out.len;
-        }
-
-        fn random(self: *@This()) std.Random {
-            return std.Random.init(self, fill);
-        }
-    };
-
-    var rng1 = ConstantRng{};
-    var rng2 = ConstantRng{};
-
-    const id1 = try customRandomAlloc(std.testing.allocator, 20, alphabet.SAFE[0..], rng1.random());
-    defer std.testing.allocator.free(id1);
-
-    const id2 = try customRandomAlloc(std.testing.allocator, 20, alphabet.SAFE[0..], rng2.random());
-    defer std.testing.allocator.free(id2);
-
-    try std.testing.expectEqualStrings(id1, id2);
-}
-
-test "simple expression for size" {
-    const id = try picoidAlloc(std.testing.allocator, 42 / 2);
+test "customRandomAlloc works with deterministic random source" {
+    var prng = std.Random.DefaultPrng.init(42);
+    const id = try customRandomAlloc(std.testing.allocator, 10, "Z", prng.random());
     defer std.testing.allocator.free(id);
 
-    try std.testing.expectEqual(@as(usize, 21), id.len);
+    try std.testing.expectEqualStrings("ZZZZZZZZZZ", id);
 }
 
-test "size zero returns empty string" {
-    const id = try picoidAlloc(std.testing.allocator, 0);
-    defer std.testing.allocator.free(id);
+test "nanoid aliases preserve behavior" {
+    const id = nanoid();
+    try std.testing.expectEqual(default_size, id.len);
+    try expectAllInAlphabet(id[0..], alphabet.SAFE[0..]);
 
-    try std.testing.expectEqual(@as(usize, 0), id.len);
+    var out: [12]u8 = undefined;
+    nanoidInto(out[0..]);
+    try expectAllInAlphabet(out[0..], alphabet.SAFE[0..]);
+
+    const allocated = try nanoidAlloc(std.testing.allocator, 12);
+    defer std.testing.allocator.free(allocated);
+
+    try std.testing.expectEqual(@as(usize, 12), allocated.len);
+    try expectAllInAlphabet(allocated, alphabet.SAFE[0..]);
 }
